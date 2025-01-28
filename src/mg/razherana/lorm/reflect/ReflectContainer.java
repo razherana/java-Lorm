@@ -16,14 +16,14 @@ import mg.razherana.lorm.annot.general.Table;
 import mg.razherana.lorm.exceptions.AnnotationException;
 
 public class ReflectContainer {
-  public static final HashMap<Class<? extends Lorm>, ReflectContainer> INSTANCES = new HashMap<>();
+  public static final HashMap<Class<? extends Lorm<?>>, ReflectContainer> INSTANCES = new HashMap<>();
 
   private String table = "";
   private ArrayList<ColumnInfo> columns = new ArrayList<>();
   private Map<String, Function<Object, ?>> beforeIn = new HashMap<>();
   private Map<String, Function<Object, ?>> beforeOut = new HashMap<>();
 
-  public static ReflectContainer loadAnnotations(Lorm lorm) {
+  public static ReflectContainer loadAnnotations(Lorm<?> lorm) {
     ReflectContainer reflectContainer = new ReflectContainer();
 
     Objects.requireNonNull(lorm, "Lorm cannot be null");
@@ -83,7 +83,9 @@ public class ReflectContainer {
       }
     }
 
-    INSTANCES.put(lorm.getClass(), reflectContainer);
+    @SuppressWarnings("unchecked")
+    Class<? extends Lorm<?>> clazz = (Class<? extends Lorm<?>>) lorm.getClass();
+    INSTANCES.put(clazz, reflectContainer);
     return reflectContainer;
   }
 
@@ -111,7 +113,7 @@ public class ReflectContainer {
     this.beforeOut = beforeOut;
   }
 
-  public void setValueFromResultSet(Lorm lorm, ResultSet resultSet) {
+  public void setValueFromResultSet(Lorm<?> lorm, ResultSet resultSet) {
     for (ColumnInfo columnInfo : columns) {
       try {
         Object value = resultSet.getObject(columnInfo.columnName);
@@ -128,7 +130,7 @@ public class ReflectContainer {
     }
   }
 
-  public HashMap<String, Object> getBeforeOutValues(Lorm lorm) {
+  public HashMap<String, Object> getBeforeOutValues(Lorm<?> lorm) {
     HashMap<String, Object> values = new HashMap<>();
 
     for (ColumnInfo columnInfo : columns) {

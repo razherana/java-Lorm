@@ -11,5 +11,5 @@ public @interface ForeignColumn {
   /**
    * The other Lorm
    */
-  public Class<? extends Lorm> model();
+  public Class<? extends Lorm<?>> model();
 }
