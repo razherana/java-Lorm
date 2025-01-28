@@ -1,5 +1,6 @@
 package mg.razherana.lorm.reflect;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.sql.ResultSet;
@@ -31,6 +32,7 @@ public class ReflectContainer {
     if (INSTANCES.containsKey(lorm.getClass()))
       return INSTANCES.get(lorm.getClass());
 
+    System.out.println("[Lorm:info] -> Load annot for " + lorm.getClass().getSimpleName());
     // Load the annotations
     Table table = lorm.getClass().getDeclaredAnnotation(Table.class);
 
@@ -62,6 +64,8 @@ public class ReflectContainer {
 
           columnInfo.getter = getter;
           columnInfo.setter = setter;
+          columnInfo.setter.setAccessible(true);
+          columnInfo.getter.setAccessible(true);
         } catch (NoSuchMethodException e) {
           throw new AnnotationException(
               "Getter or setter not found for field " + columnInfo.field.getName() + " using " + columnInfo.getterName
@@ -121,8 +125,6 @@ public class ReflectContainer {
         if (lorm.getBeforeIn().containsKey(columnInfo.columnName))
           value = lorm.getBeforeIn().get(columnInfo.columnName).apply(value);
 
-        if (!columnInfo.setter.canAccess(this))
-          columnInfo.setter.setAccessible(true);
         columnInfo.setter.invoke(lorm, value);
       } catch (Exception e) {
         throw new RuntimeException(e);
@@ -147,5 +149,32 @@ public class ReflectContainer {
     }
 
     return values;
+  }
+
+  public HashMap<String, Object> getBeforeOutInsertValues(Lorm<?> lorm) {
+    var beforeOutValues = getBeforeOutValues(lorm);
+
+    columns.stream().filter(ColumnInfo::isPrimaryKey)
+        .forEach(columnInfo -> beforeOutValues.remove(columnInfo.columnName));
+
+    return beforeOutValues;
+  }
+
+  public HashMap<String, Object> getBeforeOutPrimaryKeyOrAll(Lorm<?> lorm) {
+    var beforeOutValues = getBeforeOutValues(lorm);
+
+    // We get all primary keys
+    var primaryKeys = columns.stream().filter(ColumnInfo::isPrimaryKey).map(ColumnInfo::getColumnName)
+        .toArray(String[]::new);
+
+    // If we have primary keys, we return only them
+    if (primaryKeys.length > 0) {
+      var primaryKeyValues = new HashMap<String, Object>();
+      for (String primaryKey : primaryKeys)
+        primaryKeyValues.put(primaryKey, beforeOutValues.get(primaryKey));
+      return primaryKeyValues;
+    }
+
+    return beforeOutValues;
   }
 }

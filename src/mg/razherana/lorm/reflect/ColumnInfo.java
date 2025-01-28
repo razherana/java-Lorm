@@ -15,7 +15,7 @@ public class ColumnInfo {
   boolean primaryKey;
   boolean foreignKey;
   String foreignName;
-  Class<? extends Lorm> foreignModel;
+  Class<? extends Lorm<?>> foreignModel;
 
   public String getColumnName() {
     return columnName;
@@ -53,7 +53,7 @@ public class ColumnInfo {
     return foreignName;
   }
 
-  public Class<? extends Lorm> getForeignModel() {
+  public Class<? extends Lorm<?>> getForeignModel() {
     return foreignModel;
   }
 }
