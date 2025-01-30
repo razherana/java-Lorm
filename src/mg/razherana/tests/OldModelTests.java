@@ -3,23 +3,25 @@ package mg.razherana.tests;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import mg.dao.annotation.Column;
+import mg.dao.annotation.Table;
+import mg.daoherana.DaoHerana;
+import mg.daoherana.relations.BelongsTo;
+import mg.daoherana.relations.HasMany;
 import mg.razherana.database.DatabaseConnection;
-import mg.razherana.lorm.Lorm;
-import mg.razherana.lorm.annot.columns.Column;
-import mg.razherana.lorm.annot.columns.ForeignColumn;
-import mg.razherana.lorm.annot.general.Table;
-import mg.razherana.lorm.annot.relations.BelongsTo;
-import mg.razherana.lorm.annot.relations.EagerLoad;
-import mg.razherana.lorm.annot.relations.HasMany;
-import mg.razherana.lorm.annot.relations.OneToOne;
 
-public class ModelTests {
+public class OldModelTests {
 
-  @Table("user")
-  @HasMany(model = Post.class)
-  @EagerLoad("posts")
-  static class User extends Lorm<User> {
-    @Column(primaryKey = true)
+  @Table(name = "user")
+  @HasMany(model = Post.class, parentKeyGetter = "getId", foreignKeyGetter = "getUser", relationName = "posts")
+  static class User extends DaoHerana {
+    public User() {
+    }
+
+    @Column(isPK = true)
     private int id;
 
     @Column
@@ -46,14 +48,16 @@ public class ModelTests {
     }
   }
 
-  @Table("post")
-  @OneToOne(model = User.class)
-  static class Post extends Lorm<Post> {
-    @Column(primaryKey = true)
+  @Table(name = "post")
+  @BelongsTo(model = User.class, parentKeyGetter = "getUser", foreignKeyGetter = "getId", relationName = "user")
+  static class Post extends DaoHerana {
+    public Post() {
+    }
+
+    @Column(isPK = true)
     private int id;
 
     @Column
-    @ForeignColumn(model = User.class)
     private int user;
 
     @Column
@@ -63,7 +67,7 @@ public class ModelTests {
     private String description;
 
     public User getUser(Connection conn) throws SQLException {
-      return oneToOne("user", conn);
+      return belongsTo("user", conn);
     }
 
     public int getId() {
@@ -100,7 +104,7 @@ public class ModelTests {
   }
 
   public static void main(String[] args) {
-    System.out.println("ModelTests");
+    System.out.println("Old Model Tests");
 
     try {
       DatabaseConnection connection = DatabaseConnection.fromDotEnv("database.xml");
@@ -110,14 +114,14 @@ public class ModelTests {
       System.out.println("Request started !!!");
 
       User ex = new User();
-      ArrayList<User> users = ex.all(conn);
+      ex.setMapLoads(Map.of(User.class.getName(), List.of("posts"), Post.class.getName(), List.of("user")));
+      User[] users = ex.getAll(conn);
 
       for (User user : users) {
         System.out.println(user.getId() + " - " + user.getName());
         for (Post post : user.getPosts(conn)) {
           System.out.println("  " + post.getId() + " - " + post.getTitle());
-          // System.out.println(post.getUser(conn).getName() + " - " +
-          // post.getDescription());
+          System.out.println(post.getUser(conn).getName() + " - " + post.getDescription());
         }
       }
 
