@@ -8,7 +8,6 @@ import mg.razherana.lorm.Lorm;
 import mg.razherana.lorm.annot.columns.Column;
 import mg.razherana.lorm.annot.columns.ForeignColumn;
 import mg.razherana.lorm.annot.general.Table;
-import mg.razherana.lorm.annot.relations.BelongsTo;
 import mg.razherana.lorm.annot.relations.EagerLoad;
 import mg.razherana.lorm.annot.relations.HasMany;
 import mg.razherana.lorm.annot.relations.OneToOne;
@@ -110,14 +109,15 @@ public class ModelTests {
       System.out.println("Request started !!!");
 
       User ex = new User();
+      ex.addNestedEagerLoad("posts").addEagerLoad("user");
       ArrayList<User> users = ex.all(conn);
 
       for (User user : users) {
         System.out.println(user.getId() + " - " + user.getName());
-        for (Post post : user.getPosts(conn)) {
+        for (Post post : user.getPosts(null)) {
           System.out.println("  " + post.getId() + " - " + post.getTitle());
-          // System.out.println(post.getUser(conn).getName() + " - " +
-          // post.getDescription());
+          System.out.println(post.getUser(null).getName() + " - " +
+          post.getDescription());
         }
       }
 
