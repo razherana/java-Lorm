@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+<comment>Generator configuration</comment>
+<entry key="outputDir">src/mg/razherana/tests/models</entry>
+<entry key="prefixField"></entry>
+<entry key="removePrefixField"></entry>
+<entry key="classConvention">PascalCase</entry>
+<entry key="databaseConfig">database.xml</entry>
+<entry key="prefixClass"></entry>
+<entry key="outputPackage">mg.razherana.tests.models</entry>
+<entry key="columnToField"></entry>
+<entry key="fieldConvention">camelCase</entry>
+<entry key="tableToClass">comments:comment</entry>
+<entry key="removePrefixClass">test_</entry>
+</properties>
