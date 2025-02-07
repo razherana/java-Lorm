@@ -4,103 +4,16 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import mg.razherana.database.DatabaseConnection;
-import mg.razherana.lorm.Lorm;
-import mg.razherana.lorm.annot.columns.Column;
-import mg.razherana.lorm.annot.columns.ForeignColumn;
-import mg.razherana.lorm.annot.general.Table;
-import mg.razherana.lorm.annot.relations.BelongsTo;
-import mg.razherana.lorm.annot.relations.EagerLoad;
-import mg.razherana.lorm.annot.relations.HasMany;
-import mg.razherana.lorm.annot.relations.OneToOne;
+import mg.razherana.tests.models.Post;
+import mg.razherana.tests.models.User;
 
 public class ModelTests {
-
-  @Table("user")
-  @HasMany(model = Post.class)
-  @EagerLoad("posts")
-  static class User extends Lorm<User> {
-    @Column(primaryKey = true)
-    private int id;
-
-    @Column
-    private String name;
-
-    public int getId() {
-      return id;
-    }
-
-    public void setId(int id) {
-      this.id = id;
-    }
-
-    public String getName() {
-      return name;
-    }
-
-    public void setName(String name) {
-      this.name = name;
-    }
-
-    public ArrayList<Post> getPosts(Connection conn) throws SQLException {
-      return hasMany("posts", conn);
-    }
-  }
-
-  @Table("post")
-  @OneToOne(model = User.class)
-  static class Post extends Lorm<Post> {
-    @Column(primaryKey = true)
-    private int id;
-
-    @Column
-    @ForeignColumn(model = User.class)
-    private int user;
-
-    @Column
-    private String title;
-
-    @Column
-    private String description;
-
-    public User getUser(Connection conn) throws SQLException {
-      return oneToOne("user", conn);
-    }
-
-    public int getId() {
-      return id;
-    }
-
-    public void setId(int id) {
-      this.id = id;
-    }
-
-    public int getUser() {
-      return user;
-    }
-
-    public void setUser(int user) {
-      this.user = user;
-    }
-
-    public String getTitle() {
-      return title;
-    }
-
-    public void setTitle(String title) {
-      this.title = title;
-    }
-
-    public String getDescription() {
-      return description;
-    }
-
-    public void setDescription(String description) {
-      this.description = description;
-    }
-  }
-
   public static void main(String[] args) {
     System.out.println("ModelTests");
+
+    // Generate the models
+    // var gen = new Generator("generator.xml");
+    // gen.generateFiles();
 
     try {
       DatabaseConnection connection = DatabaseConnection.fromDotEnv("database.xml");
@@ -110,13 +23,14 @@ public class ModelTests {
       System.out.println("Request started !!!");
 
       User ex = new User();
+      ex.addNestedEagerLoad("posts");
       ArrayList<User> users = ex.all(conn);
 
       for (User user : users) {
         System.out.println(user.getId() + " - " + user.getName());
         for (Post post : user.getPosts(conn)) {
           System.out.println("  " + post.getId() + " - " + post.getTitle());
-          // System.out.println(post.getUser(conn).getName() + " - " +
+          // System.out.println(post.getUser(null).getName() + " - " +
           // post.getDescription());
         }
       }

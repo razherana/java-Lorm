@@ -6,7 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
@@ -28,28 +28,53 @@ abstract public class Lorm<T extends Lorm<T>> {
       eagerLoads.add(new NestedEagerLoad(eagerLoad));
   }
 
-  protected List<NestedEagerLoad> eagerLoads = new ArrayList<>();
+  protected HashSet<NestedEagerLoad> eagerLoads = new HashSet<>();
 
-  public List<NestedEagerLoad> getEagerLoads() {
+  public HashSet<NestedEagerLoad> getEagerLoads() {
     return eagerLoads;
   }
 
-  public void setEagerLoads(List<NestedEagerLoad> eagerLoads) {
+  public void setEagerLoads(HashSet<NestedEagerLoad> eagerLoads) {
     this.eagerLoads = eagerLoads;
   }
 
+  /**
+   * Checks if exists first
+   * 
+   * @param eagerLoad
+   * @return
+   */
   public Lorm<T> addEagerLoad(String eagerLoad) {
+    for (NestedEagerLoad nestedEagerLoad : eagerLoads)
+      if (eagerLoad.equals(nestedEagerLoad.getRelation()))
+        return this;
     eagerLoads.add(new NestedEagerLoad(eagerLoad));
     return this;
   }
 
+  /**
+   * There are no checking or this
+   * 
+   * @param eagerLoad
+   * @return
+   */
   public Lorm<T> addEagerLoad(String[] eagerLoad) {
     for (String string : eagerLoad)
       eagerLoads.add(new NestedEagerLoad(string));
     return this;
   }
 
+  /**
+   * Checks if exist then get the existant else create one
+   * 
+   * @param eagerLoad
+   * @return
+   */
   public NestedEagerLoad addNestedEagerLoad(String eagerLoad) {
+    for (NestedEagerLoad nestedEagerLoad : eagerLoads)
+      if (eagerLoad.equals(nestedEagerLoad.getRelation()))
+        return nestedEagerLoad;
+  
     NestedEagerLoad nestedEagerLoad = new NestedEagerLoad(eagerLoad);
     eagerLoads.add(nestedEagerLoad);
     return nestedEagerLoad;
@@ -247,7 +272,7 @@ abstract public class Lorm<T extends Lorm<T>> {
   }
 
   private static <U extends Lorm<U>, T extends Lorm<T>> void hasManyStatic(ArrayList<T> models, Relation<T, U> relation,
-      Connection connection, List<NestedEagerLoad> nestedLoads) throws SQLException {
+      Connection connection, HashSet<NestedEagerLoad> nestedLoads) throws SQLException {
     U other;
     try {
       var constr = relation.getModel2().getDeclaredConstructor();
@@ -332,7 +357,7 @@ abstract public class Lorm<T extends Lorm<T>> {
   }
 
   private static <U extends Lorm<U>, T extends Lorm<T>> void belongsToStatic(ArrayList<T> models,
-      Relation<T, U> relation, Connection connection, List<NestedEagerLoad> nestedLoads) throws SQLException {
+      Relation<T, U> relation, Connection connection, HashSet<NestedEagerLoad> nestedLoads) throws SQLException {
     U other;
     try {
       var constr = relation.getModel2().getDeclaredConstructor();
