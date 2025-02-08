@@ -161,6 +161,8 @@ public class FileGenerator {
   }
 
   public void write() {
+    if(file.exists())
+      return;
     try (java.io.FileWriter fileWriter = new java.io.FileWriter(file)) {
       fileWriter.write(generate());
     } catch (Exception e) {
