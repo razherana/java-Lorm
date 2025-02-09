@@ -21,7 +21,7 @@ CREATE TABLE comments (
 CREATE TABLE test_like (
   id INT PRIMARY KEY AUTO_INCREMENT,
   post INT REFERENCES post(id),
-  user INT REFERENCES user(id),
+  user_id INT REFERENCES user(id),
   date DATETIME NOT NULL
 );
 

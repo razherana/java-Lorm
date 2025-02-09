@@ -1,32 +1,36 @@
 // Generated Model using mg.razherana.generator
-// Goood Luck coding!
+// Happy Codingg!
 
 package mg.razherana.tests.models;
 
+import java.sql.SQLException;
 import mg.razherana.lorm.annot.columns.Column;
+import java.sql.Connection;
+import mg.razherana.lorm.annot.relations.BelongsTo;
 import mg.razherana.lorm.annot.general.Table;
-import mg.razherana.lorm.Lorm;
 import mg.razherana.lorm.annot.columns.ForeignColumn;
+import mg.razherana.lorm.Lorm;
 
 @Table("test_like")
+@BelongsTo(model = User.class, foreignKey = "user_id", relationName = "user")
 public class Like extends Lorm<Like> { 
-	@Column(value = "date")
-	private java.sql.Timestamp date;
+	@Column(value = "date", getter = "getDate", setter = "setDate")
+	private java.time.LocalDateTime date;
 
-	@Column(value = "id", primaryKey = true)
+	@Column(value = "id", primaryKey = true, getter = "getId", setter = "setId")
 	private int id;
 
-	@Column(value = "post")
+	@Column(value = "post", getter = "getPost", setter = "setPost")
 	@ForeignColumn(name = "id", model = Post.class)
 	private int post;
 
-	@Column(value = "user")
+	@Column(value = "user_id", getter = "getUserid", setter = "setUserid")
 	@ForeignColumn(name = "id", model = User.class)
-	private int user;
+	private int userId;
 
-	public java.sql.Timestamp getDate() { return date; }
+	public java.time.LocalDateTime getDate() { return date; }
 
-	public void setDate(java.sql.Timestamp date) { this.date = date; }
+	public void setDate(java.time.LocalDateTime date) { this.date = date; }
 
 	public int getId() { return id; }
 
@@ -36,7 +40,9 @@ public class Like extends Lorm<Like> {
 
 	public void setPost(int post) { this.post = post; }
 
-	public int getUser() { return user; }
+	public int getUserid() { return userId; }
 
-	public void setUser(int user) { this.user = user; }
+	public void setUserid(int userId) { this.userId = userId; }
+
+	public User getUser(Connection connection) throws SQLException { return belongsTo("user", connection); }
 }

@@ -1,45 +1,38 @@
 // Generated Model using mg.razherana.generator
-// Goood Luck coding!
+// Happy Codingg!
 
 package mg.razherana.tests.models;
 
-import mg.razherana.lorm.annot.columns.Column;
-import mg.razherana.lorm.annot.general.Table;
-import mg.razherana.lorm.annot.relations.HasMany;
-
-import java.sql.Connection;
 import java.sql.SQLException;
+import mg.razherana.lorm.annot.columns.Column;
+import java.sql.Connection;
+import mg.razherana.lorm.annot.relations.HasMany;
+import mg.razherana.lorm.annot.general.Table;
+import mg.razherana.lorm.Lorm;
 import java.util.ArrayList;
 
-import mg.razherana.lorm.Lorm;
-
 @Table("user")
-@HasMany(model = Post.class, foreignKey = "user")
-// Can be shorthanded : @HasMany(model = Post.class)
-public class User extends Lorm<User> {
-	@Column(value = "name")
+@HasMany(model = Comment.class, foreignKey = "user", relationName = "comments")
+@HasMany(model = Post.class, foreignKey = "user", relationName = "posts")
+@HasMany(model = Like.class, foreignKey = "user_id", relationName = "likes")
+public class User extends Lorm<User> { 
+	@Column(value = "name", getter = "getName", setter = "setName")
 	private String name;
 
-	@Column(value = "id", primaryKey = true)
+	@Column(value = "id", primaryKey = true, getter = "getId", setter = "setId")
 	private int id;
 
-	public String getName() {
-		return name;
-	}
+	public String getName() { return name; }
 
-	public void setName(String name) {
-		this.name = name;
-	}
+	public void setName(String name) { this.name = name; }
 
-	public int getId() {
-		return id;
-	}
+	public int getId() { return id; }
 
-	public void setId(int id) {
-		this.id = id;
-	}
+	public void setId(int id) { this.id = id; }
 
-	public ArrayList<Post> getPosts(Connection conn) throws SQLException {
-		return hasMany("posts", conn);
-	}
+	public ArrayList<Comment> getComments(Connection connection) throws SQLException { return hasMany("comments", connection); }
+
+	public ArrayList<Post> getPosts(Connection connection) throws SQLException { return hasMany("posts", connection); }
+
+	public ArrayList<Like> getLikes(Connection connection) throws SQLException { return hasMany("likes", connection); }
 }
