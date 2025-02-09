@@ -1,6 +1,9 @@
 package mg.razherana.generator.utils;
 
 import java.sql.Types;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 public class SqlTypeToJavaType {
   public static String mapSqlTypeToJavaType(int sqlType) {
@@ -18,10 +21,12 @@ public class SqlTypeToJavaType {
         return "float";
       case Types.DECIMAL:
         return "java.math.BigDecimal";
+      case Types.TIME:
+        return LocalTime.class.getName();
       case Types.DATE:
-        return "java.sql.Date";
+        return LocalDate.class.getName();
       case Types.TIMESTAMP:
-        return "java.sql.Timestamp";
+        return LocalDateTime.class.getName();
       case Types.BLOB:
         return "byte[]";
       case Types.BOOLEAN:

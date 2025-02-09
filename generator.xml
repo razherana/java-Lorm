@@ -13,4 +13,10 @@
 <entry key="fieldConvention">camelCase</entry>
 <entry key="tableToClass">comments:comment</entry>
 <entry key="removePrefixClass">test_</entry>
+<entry key="relations">
+user:id:hasmany:post:user:posts:user,
+comments:user:belongsto:user:id:user:comments,
+comments:post:belongsto:post:id:post:comments,
+test_like:user_id:belongsto:user:id:user:likes
+</entry>
 </properties>

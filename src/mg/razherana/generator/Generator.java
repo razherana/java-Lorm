@@ -5,6 +5,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.stream.Collectors;
@@ -39,9 +40,11 @@ public class Generator {
   }
 
   public void generateFiles() {
-    for (Table table : database.getTables().values()) {
+    var tables = new ArrayList<>(database.getTables().values());
+    for (Table table : tables) {
       File file = new File(configuration.getOutputDir() + File.separator + table.getName() + ".java");
-      FileGenerator fileGenerator = new FileGenerator(file, table, configuration.getOutputPackage());
+      FileGenerator fileGenerator = new FileGenerator(file, table, configuration.getOutputPackage(),
+          configuration.getRelationConfigs(), tables);
       fileGenerator.write();
     }
   }

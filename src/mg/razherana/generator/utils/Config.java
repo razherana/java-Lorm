@@ -5,11 +5,13 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Properties;
 
 import mg.razherana.generator.exceptions.ConfigNotInitializedException;
 import mg.razherana.generator.exceptions.InvalidConfigFileException;
 import mg.razherana.generator.exceptions.InvalidConfigValueException;
+import mg.razherana.generator.relations.RelationConfigs;
 
 public class Config {
   private Properties properties;
@@ -25,6 +27,7 @@ public class Config {
   private String fieldConvention;
   private HashMap<String, String> tableToClass = new HashMap<>();
   private HashMap<String, String> columnToField = new HashMap<>();
+  private HashSet<RelationConfigs> relationConfigs = new HashSet<>();
 
   public Config(String file) {
     properties = new Properties();
@@ -41,6 +44,14 @@ public class Config {
       saveProperties(file);
       throw new ConfigNotInitializedException();
     }
+  }
+
+  public HashSet<RelationConfigs> getRelationConfigs() {
+    return relationConfigs;
+  }
+
+  public void setRelationConfigs(HashSet<RelationConfigs> relationConfigs) {
+    this.relationConfigs = relationConfigs;
   }
 
   public String getDatabaseConfig() {
@@ -69,6 +80,78 @@ public class Config {
 
   public String get(String key) {
     return properties.getProperty(key);
+  }
+
+  public Properties getProperties() {
+    return properties;
+  }
+
+  public void setProperties(Properties properties) {
+    this.properties = properties;
+  }
+
+  public String getPrefixClass() {
+    return prefixClass;
+  }
+
+  public void setPrefixClass(String prefixClass) {
+    this.prefixClass = prefixClass;
+  }
+
+  public String getPrefixField() {
+    return prefixField;
+  }
+
+  public void setPrefixField(String prefixField) {
+    this.prefixField = prefixField;
+  }
+
+  public HashMap<String, String> getTableToClass() {
+    return tableToClass;
+  }
+
+  public void setTableToClass(HashMap<String, String> tableToClass) {
+    this.tableToClass = tableToClass;
+  }
+
+  public HashMap<String, String> getColumnToField() {
+    return columnToField;
+  }
+
+  public void setColumnToField(HashMap<String, String> columnToField) {
+    this.columnToField = columnToField;
+  }
+
+  public ArrayList<String> getRemovePrefixClass() {
+    return removePrefixClass;
+  }
+
+  public void setRemovePrefixClass(ArrayList<String> removePrefixClass) {
+    this.removePrefixClass = removePrefixClass;
+  }
+
+  public ArrayList<String> getRemovePrefixField() {
+    return removePrefixField;
+  }
+
+  public void setRemovePrefixField(ArrayList<String> removePrefixField) {
+    this.removePrefixField = removePrefixField;
+  }
+
+  public String getClassConvention() {
+    return classConvention;
+  }
+
+  public void setClassConvention(String classConvention) {
+    this.classConvention = classConvention;
+  }
+
+  public String getFieldConvention() {
+    return fieldConvention;
+  }
+
+  public void setFieldConvention(String fieldConvention) {
+    this.fieldConvention = fieldConvention;
   }
 
   private void parseConfigs() {
@@ -184,6 +267,23 @@ public class Config {
             columnToFieldPair[2].trim());
       }
     }
+
+    // Relations
+    String relationStrings = properties.getProperty("relations");
+    if (relationStrings != null && !relationStrings.isBlank()) {
+      String[] relationStringSplitted = relationStrings.split(",");
+      for (String relationString : relationStringSplitted) {
+        relationString = relationString.trim();
+        String[] parts = relationString.split(":");
+
+        if (parts.length < 5 || parts.length > 7)
+          throw new InvalidConfigValueException("The relations is not correctly set");
+
+        RelationConfigs relationConfigs = new RelationConfigs(parts[0].trim(), parts[1].trim(), parts[2].trim(),
+            parts[3].trim(), parts[4].trim(), parts.length >= 6 ? parts[5].trim() : "", parts.length >= 7 ? parts[6].trim() : "");
+        getRelationConfigs().add(relationConfigs);
+      }
+    }
   }
 
   private void initPropertiesDefaults() {
@@ -204,6 +304,8 @@ public class Config {
         "{If you want to change the table to class name specifically `table:name` separated by commas. users:User, posts:Post}");
     properties.setProperty("columnToField",
         "{If you want to change the column to field name specifically `table:col:name` separated by commas. users:id:identifier, users:id2:identifier2}");
+    properties.setProperty("relations",
+        "{If you want to define relations like hasmany belongsto onetoone. It will create automatically the reciprocating relation, eg : users:id:hasmany:posts:user_id[:optional_relation_name1:optional_relation_name2], posts:id:hasmany:comments:post_id[:optional_relation_name1:optional_relation_name2]}");
   }
 
   private void saveProperties(String file) {
@@ -212,77 +314,5 @@ public class Config {
     } catch (Exception e) {
       e.printStackTrace();
     }
-  }
-
-  public Properties getProperties() {
-    return properties;
-  }
-
-  public void setProperties(Properties properties) {
-    this.properties = properties;
-  }
-
-  public String getPrefixClass() {
-    return prefixClass;
-  }
-
-  public void setPrefixClass(String prefixClass) {
-    this.prefixClass = prefixClass;
-  }
-
-  public String getPrefixField() {
-    return prefixField;
-  }
-
-  public void setPrefixField(String prefixField) {
-    this.prefixField = prefixField;
-  }
-
-  public HashMap<String, String> getTableToClass() {
-    return tableToClass;
-  }
-
-  public void setTableToClass(HashMap<String, String> tableToClass) {
-    this.tableToClass = tableToClass;
-  }
-
-  public HashMap<String, String> getColumnToField() {
-    return columnToField;
-  }
-
-  public void setColumnToField(HashMap<String, String> columnToField) {
-    this.columnToField = columnToField;
-  }
-
-  public ArrayList<String> getRemovePrefixClass() {
-    return removePrefixClass;
-  }
-
-  public void setRemovePrefixClass(ArrayList<String> removePrefixClass) {
-    this.removePrefixClass = removePrefixClass;
-  }
-
-  public ArrayList<String> getRemovePrefixField() {
-    return removePrefixField;
-  }
-
-  public void setRemovePrefixField(ArrayList<String> removePrefixField) {
-    this.removePrefixField = removePrefixField;
-  }
-
-  public String getClassConvention() {
-    return classConvention;
-  }
-
-  public void setClassConvention(String classConvention) {
-    this.classConvention = classConvention;
-  }
-
-  public String getFieldConvention() {
-    return fieldConvention;
-  }
-
-  public void setFieldConvention(String fieldConvention) {
-    this.fieldConvention = fieldConvention;
   }
 }

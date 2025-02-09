@@ -2,9 +2,14 @@ package mg.razherana.generator.file;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 
 import mg.razherana.generator.dbproperties.Column;
 import mg.razherana.generator.dbproperties.Table;
+import mg.razherana.generator.relations.RelationConfigs;
+import mg.razherana.generator.utils.ConventionStringBuilder;
+import mg.razherana.generator.utils.ConventionStringBuilder.Convention;
+import mg.razherana.lorm.exceptions.AnnotationException;
 
 public class FileGenerator {
   public static StringBuilder newLineAndTab(StringBuilder stringBuilder, int tabs, int newLines) {
@@ -15,13 +20,27 @@ public class FileGenerator {
 
   private File file;
   private Table table;
+  private ArrayList<Table> tables;
   private String packageName;
-  private ArrayList<String> imports = new ArrayList<>();
+  private HashSet<String> imports = new HashSet<>();
 
-  public FileGenerator(File file, Table table, String packageName) {
+  private ArrayList<RelationConfigs> relationConfig = new ArrayList<>();
+  private boolean hasRelationConfig = false;
+
+  public FileGenerator(File file, Table table, String packageName, HashSet<RelationConfigs> relationConfigs,
+      ArrayList<Table> tables) {
     this.table = table;
     this.packageName = packageName;
     this.file = file;
+    this.tables = tables;
+
+    if (relationConfigs != null) {
+      for (RelationConfigs relationConfigs2 : relationConfigs)
+        if (relationConfigs2.matches(table.getOgName())) {
+          this.relationConfig.add(relationConfigs2);
+          hasRelationConfig = true;
+        }
+    }
 
     fillImports();
   }
@@ -43,8 +62,7 @@ public class FileGenerator {
     int i = 1;
 
     for (Column column : table.getColumns().values()) {
-      String colGetSetName = column.getName().substring(0, 1).toUpperCase()
-          + column.getName().substring(1, column.getName().length());
+      String colGetSetName = ConventionStringBuilder.toConvention(column.getName(), Convention.PASCAl);
       stringBuilder
           .append(
               "public " + column.getJavaType() + " get" + colGetSetName + "() { return " + column.getName() + "; }");
@@ -56,10 +74,42 @@ public class FileGenerator {
               "public void set" + colGetSetName + "(" + column.getJavaType() + " " + column.getName() + ") { this."
                   + column.getName() + " = " + column.getName() + "; }");
 
-      if (i < size)
+      if (i < size || hasRelationConfig)
         newLineAndTab(stringBuilder, tab, 2);
       i++;
     }
+
+    // Generating relation getter and setters
+    i = 0;
+    size = relationConfig.size();
+    if (hasRelationConfig)
+      for (RelationConfigs relationConfigs : relationConfig) {
+        // Model name
+        String otherModel = null;
+        String relationTableName = relationConfigs.getRelationTable(table.getOgName());
+
+        Table relationTable = tables.stream().filter((e) -> e.getOgName().equals(relationTableName)).findAny()
+            .orElse(null);
+        if (relationTable == null)
+          throw new AnnotationException("The relationTable " + relationTableName + " doesn't exists...");
+
+        otherModel = relationTable.getName();
+
+        var relationName = relationConfigs.getRelationName(table.getOgName());
+
+        String returnType = relationConfigs.getReturnTypeString(table.getOgName(), otherModel);
+
+        stringBuilder
+            .append(
+                "public " + returnType + " get" + ConventionStringBuilder.toConvention(relationName, Convention.PASCAl)
+                    + "(Connection connection) throws SQLException { return "
+                    + relationConfigs.getRelationMethodName(table.getOgName())
+                    + "(\"" + relationName + "\", connection); }");
+
+        if (i < size - 1)
+          newLineAndTab(stringBuilder, tab, 2);
+        i++;
+      }
 
     return stringBuilder.toString();
   }
@@ -67,6 +117,7 @@ public class FileGenerator {
   public String makeColumn(Column column, int tab) {
     String type = column.getJavaType();
     String colName = column.getName();
+    String colGetSetName = ConventionStringBuilder.toConvention(column.getName(), Convention.PASCAl);
 
     StringBuilder stringBuilder = new StringBuilder();
 
@@ -77,7 +128,7 @@ public class FileGenerator {
     if (column.isPrimaryKey())
       stringBuilder.append(", primaryKey = true");
 
-    stringBuilder.append(")");
+    stringBuilder.append(", getter = \"get" + colGetSetName + "\", setter = \"set" + colGetSetName + "\")");
 
     newLineAndTab(stringBuilder, tab, 1);
 
@@ -128,14 +179,25 @@ public class FileGenerator {
         imports.add("mg.razherana.lorm.annot.columns.ForeignColumn");
         break;
       }
+
+    if (hasRelationConfig) {
+      imports.add("java.sql.Connection");
+      imports.add("java.sql.SQLException");
+      for (RelationConfigs relationConfig2 : relationConfig) {
+        imports.add(relationConfig2.getRelationType(table.getOgName()).getName());
+        String toImport = relationConfig2.getImport(table.getOgName());
+        if (!toImport.isEmpty())
+          imports.add(toImport);
+      }
+    }
   }
 
   private String makeHeader() {
     StringBuilder stringBuilder = new StringBuilder();
     stringBuilder.append("// Generated Model using mg.razherana.generator");
-    stringBuilder.append("\n");
-    stringBuilder.append("// Goood Luck coding!");
-    stringBuilder.append("\n\n");
+    newLineAndTab(stringBuilder, 0, 1);
+    stringBuilder.append("// Happy Codingg!");
+    newLineAndTab(stringBuilder, 0, 2);
 
     // Package
     stringBuilder.append("package " + packageName + ";");
@@ -155,14 +217,46 @@ public class FileGenerator {
 
     stringBuilder.append("@Table(\"" + table.getOgName() + "\")");
     newLineAndTab(stringBuilder, 0, 1);
+
+    // Add relations here :
+    for (RelationConfigs relationConfig2 : relationConfig) {
+      // Model name
+
+      String otherModel = null;
+      String relationTableName = relationConfig2.getRelationTable(table.getOgName());
+
+      Table relationTable = tables.stream().filter((e) -> e.getOgName().equals(relationTableName)).findAny()
+          .orElse(null);
+      if (relationTable == null)
+        throw new AnnotationException("The relationTable " + relationTableName + " doesn't exists...");
+
+      otherModel = relationTable.getName();
+
+      // Column name
+      String relationColumnName = relationConfig2.getRelationColumn(table.getOgName());
+      var relationColumn = relationConfig2.getTableToCheck(table, relationTable).getColumnOg(relationColumnName);
+      String relationName = relationConfig2.getRelationName(table.getOgName());
+
+      if (relationColumn == null)
+        throw new AnnotationException("The relationColumn " + relationColumnName + " in the relationTable "
+            + relationTable.getName() + " doesn't exists...");
+
+      stringBuilder
+          .append("@" + relationConfig2.getRelationType(table.getOgName()).getSimpleName() + "(model = " + otherModel
+              + ".class, foreignKey = \"" + relationColumnName + "\", relationName = \"" + relationName + "\")");
+      newLineAndTab(stringBuilder, 0, 1);
+    }
+
     stringBuilder.append("public class " + table.getName() + " extends Lorm<" + table.getName() + "> { ");
 
     return stringBuilder.toString();
   }
 
   public void write() {
-    if(file.exists())
+    if (file.exists()) {
+      System.out.println("[WARNING] -> File already exists : " + file.getName());
       return;
+    }
     try (java.io.FileWriter fileWriter = new java.io.FileWriter(file)) {
       fileWriter.write(generate());
     } catch (Exception e) {
