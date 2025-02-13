@@ -35,6 +35,7 @@ public class DatabaseConnection {
 
   /**
    * Load the database connection from a .env file
+   * 
    * @param fileName
    * @return
    */
@@ -44,6 +45,7 @@ public class DatabaseConnection {
 
     Properties properties;
     if (new File(fileName).exists()) {
+      System.out.println("[INFO] -> Using dotenv : " + new File(fileName).getAbsolutePath());
       try (FileInputStream fis = new FileInputStream(fileName)) {
         properties = new Properties();
         properties.loadFromXML(fis);
