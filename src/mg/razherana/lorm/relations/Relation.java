@@ -10,14 +10,26 @@ public class Relation<T extends Lorm<T>, U extends Lorm<U>> {
   final private BiPredicate<T, U> condition;
   final private RelationType relationType;
   final private String relationName;
+  final private RelationType.CheckAndAddToData relationSetter;
 
   public Relation(Class<T> model1, Class<U> model2,
       BiPredicate<T, U> condition, RelationType relationType, String relationName) {
+    this(model1, model2, condition, relationType, relationName, relationType.getRelationSetter());
+  }
+
+  public Relation(Class<T> model1, Class<U> model2,
+      BiPredicate<T, U> condition, RelationType relationType, String relationName,
+      RelationType.CheckAndAddToData relationSetter) {
     this.model1 = model1;
     this.model2 = model2;
     this.condition = condition;
     this.relationType = relationType;
     this.relationName = relationName;
+    this.relationSetter = relationSetter;
+  }
+
+  public RelationType.CheckAndAddToData getRelationSetter() {
+    return relationSetter;
   }
 
   public Class<T> getModel1() {

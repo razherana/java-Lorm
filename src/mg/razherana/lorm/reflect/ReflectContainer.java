@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 import mg.razherana.lorm.Lorm;
@@ -25,47 +24,6 @@ import mg.razherana.lorm.relations.RelationType;
 
 public class ReflectContainer {
   public static final HashMap<Class<? extends Lorm<?>>, ReflectContainer> INSTANCES = new HashMap<>();
-
-  private String table = "";
-  private ArrayList<ColumnInfo> columns = new ArrayList<>();
-  private Map<String, Function<Object, ?>> beforeIn = new HashMap<>();
-  private Map<String, Function<Object, ?>> beforeOut = new HashMap<>();
-  private Map<String, Relation<? extends Lorm<?>, ? extends Lorm<?>>> relationMap = new HashMap<>();
-  private ArrayList<String> eagerLoads = new ArrayList<>();
-
-  public ArrayList<String> getEagerLoads() {
-    return eagerLoads;
-  }
-
-  public void setEagerLoads(ArrayList<String> eagerLoads) {
-    this.eagerLoads = eagerLoads;
-  }
-
-  private Constructor<? extends Lorm<?>> constructor;
-
-  public ColumnInfo getColumn(String name) {
-    for (ColumnInfo columnInfo : columns) {
-      if (name.equals(columnInfo.columnName))
-        return columnInfo;
-    }
-    return null;
-  }
-
-  public Constructor<? extends Lorm<?>> getConstructor() {
-    return constructor;
-  }
-
-  public void setConstructor(Constructor<? extends Lorm<?>> constructor) {
-    this.constructor = constructor;
-  }
-
-  public Map<String, Relation<? extends Lorm<?>, ? extends Lorm<?>>> getRelationMap() {
-    return relationMap;
-  }
-
-  public void setRelationMap(Map<String, Relation<? extends Lorm<?>, ? extends Lorm<?>>> relationMap) {
-    this.relationMap = relationMap;
-  }
 
   @SuppressWarnings("unchecked")
   public static ReflectContainer loadAnnotations(Lorm<?> lorm) {
@@ -111,6 +69,17 @@ public class ReflectContainer {
         columnInfo.setterName = column.setter().isEmpty()
             ? "set" + field.getName().substring(0, 1).toUpperCase() + field.getName().substring(1)
             : column.setter();
+        boolean indexed = column.indexed();
+        columnInfo.indexed = indexed;
+
+        if (columnInfo.primaryKey) {
+          if (reflectContainer.primaryKey != null)
+            throw new AnnotationException("Multiple primary keys found for " + lorm.getClass().getSimpleName());
+          reflectContainer.primaryKey = columnInfo;
+        }
+
+        if (indexed || column.primaryKey())
+          reflectContainer.indexedColumns.add(columnInfo);
 
         try {
           Method getter = lorm.getClass().getDeclaredMethod(columnInfo.getterName);
@@ -163,6 +132,7 @@ public class ReflectContainer {
   @SuppressWarnings("unchecked")
   private static void loadRelationsAnnotations(Lorm<?> lorm, ReflectContainer reflectContainer) {
     HasMany[] hasManies = lorm.getClass().getDeclaredAnnotationsByType(HasMany.class);
+
     for (HasMany hasMany : hasManies) {
       String relationName = hasMany.relationName();
       if (relationName.isEmpty())
@@ -207,18 +177,27 @@ public class ReflectContainer {
 
       final var getterFinal1 = getter1;
       final var getterFinal2 = getter2;
-      BiPredicate<Lorm<?>, Lorm<?>> predicate = (lormInstance, foreignInstance) -> {
-        try {
-          return getterFinal2.invoke(lormInstance).equals(getterFinal1.invoke(foreignInstance));
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-      };
 
       @SuppressWarnings({ "rawtypes" })
       var relation = new Relation((Class<Lorm<?>>) lorm.getClass(),
-          (Class<Lorm<?>>) hasMany.model(), (BiPredicate<Lorm<?>, Lorm<?>>) predicate, RelationType.HASMANY,
-          relationName);
+          (Class<Lorm<?>>) hasMany.model(), (a, b) -> true, RelationType.HASMANY,
+          relationName, (models1, models2, cond, relName) -> {
+            try {
+              HashMap<Object, ArrayList<Lorm<?>>> map2 = new HashMap<>();
+              for (Lorm<?> model : models2) {
+                var el = getterFinal1.invoke(model);
+                map2.putIfAbsent(el, new ArrayList<>());
+                map2.get(el).add(model);
+              }
+              for (Lorm<?> model : models1) {
+                var el = getterFinal2.invoke(model);
+                model.hasMany.put(relName, map2.getOrDefault(el, new ArrayList<>()));
+              }
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          });
+
       reflectContainer.relationMap.put(relationName, relation);
     }
 
@@ -267,18 +246,26 @@ public class ReflectContainer {
 
       final var getterFinal1 = getter1;
       final var getterFinal2 = getter2;
-      BiPredicate<Lorm<?>, Lorm<?>> predicate = (lormInstance, foreignInstance) -> {
-        try {
-          return getterFinal1.invoke(lormInstance).equals(getterFinal2.invoke(foreignInstance));
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-      };
 
       @SuppressWarnings({ "rawtypes" })
-      var relation = new Relation((Class<Lorm<?>>) lorm.getClass(),
-          (Class<Lorm<?>>) belongsTo.model(), (BiPredicate<Lorm<?>, Lorm<?>>) predicate, RelationType.BELONGSTO,
-          relationName);
+      var relation = new Relation(lorm.getClass(),
+          belongsTo.model(), (a, b) -> true, RelationType.BELONGSTO,
+          relationName, (models1, models2, cond, relName) -> {
+            try {
+              HashMap<Object, Lorm<?>> map2 = new HashMap<>();
+              for (Lorm<?> model : models2) {
+                var el = getterFinal2.invoke(model);
+                map2.put(el, model);
+              }
+              for (Lorm<?> model : models1) {
+                var el = getterFinal1.invoke(model);
+                model.oneToOne.put(relName, map2.get(el));
+              }
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          });
+
       reflectContainer.relationMap.put(relationName, relation);
     }
 
@@ -327,20 +314,81 @@ public class ReflectContainer {
 
       final var getterFinal1 = getter1;
       final var getterFinal2 = getter2;
-      BiPredicate<Lorm<?>, Lorm<?>> predicate = (lormInstance, foreignInstance) -> {
-        try {
-          return getterFinal1.invoke(lormInstance).equals(getterFinal2.invoke(foreignInstance));
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-      };
 
       @SuppressWarnings({ "rawtypes" })
-      var relation = new Relation((Class<Lorm<?>>) lorm.getClass(),
-          (Class<Lorm<?>>) belongsTo.model(), (BiPredicate<Lorm<?>, Lorm<?>>) predicate, RelationType.BELONGSTO,
-          relationName);
+      var relation = new Relation(lorm.getClass(),
+          belongsTo.model(), (a, b) -> true, RelationType.ONETOONE,
+          relationName, (models1, models2, cond, relName) -> {
+            try {
+              HashMap<Object, Lorm<?>> map2 = new HashMap<>();
+              for (Lorm<?> model : models2) {
+                var el = getterFinal2.invoke(model);
+                map2.put(el, model);
+              }
+              for (Lorm<?> model : models1) {
+                var el = getterFinal1.invoke(model);
+                model.oneToOne.put(relName, map2.get(el));
+              }
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          });
+
       reflectContainer.relationMap.put(relationName, relation);
     }
+  }
+
+  private String table = "";
+  private ArrayList<ColumnInfo> columns = new ArrayList<>();
+
+  private ArrayList<ColumnInfo> indexedColumns = new ArrayList<>();
+
+  private Map<String, Function<Object, ?>> beforeIn = new HashMap<>();
+  private Map<String, Function<Object, ?>> beforeOut = new HashMap<>();
+  private Map<String, Relation<? extends Lorm<?>, ? extends Lorm<?>>> relationMap = new HashMap<>();
+  private ArrayList<String> eagerLoads = new ArrayList<>();
+
+  private Constructor<? extends Lorm<?>> constructor;
+  private ColumnInfo primaryKey;
+
+  public ArrayList<ColumnInfo> getIndexedColumns() {
+    return indexedColumns;
+  }
+
+  public void setIndexedColumns(ArrayList<ColumnInfo> indexedColumns) {
+    this.indexedColumns = indexedColumns;
+  }
+
+  public ArrayList<String> getEagerLoads() {
+    return eagerLoads;
+  }
+
+  public void setEagerLoads(ArrayList<String> eagerLoads) {
+    this.eagerLoads = eagerLoads;
+  }
+
+  public ColumnInfo getColumn(String name) {
+    for (ColumnInfo columnInfo : columns) {
+      if (name.equals(columnInfo.columnName))
+        return columnInfo;
+    }
+    return null;
+  }
+
+  public Constructor<? extends Lorm<?>> getConstructor() {
+    return constructor;
+  }
+
+  public void setConstructor(Constructor<? extends Lorm<?>> constructor) {
+    this.constructor = constructor;
+  }
+
+  public Map<String, Relation<? extends Lorm<?>, ? extends Lorm<?>>> getRelationMap() {
+    return relationMap;
+  }
+
+  public void setRelationMap(Map<String, Relation<? extends Lorm<?>, ? extends Lorm<?>>> relationMap) {
+    this.relationMap = relationMap;
   }
 
   public String getTable() {
@@ -426,5 +474,9 @@ public class ReflectContainer {
     }
 
     return beforeOutValues;
+  }
+
+  public ColumnInfo getPrimaryKey() {
+    return primaryKey;
   }
 }

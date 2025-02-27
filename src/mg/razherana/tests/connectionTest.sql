@@ -35,3 +35,6 @@ INSERT INTO `comments` VALUES (3, 2, 1, 'Comment 3'), (4, 2, 2, 'Comment 4');
 INSERT INTO `test_like` VALUES (1, 1, 1, '2020-01-01 00:00:00'), (2, 1, 2, '2020-01-01 00:00:00');
 INSERT INTO `test_like` VALUES (3, 2, 1, '2020-01-01 00:00:00'), (4, 2, 2, '2020-01-01 00:00:00');
 
+
+DELETE FROM `post`;
+DELETE FROM `user`;

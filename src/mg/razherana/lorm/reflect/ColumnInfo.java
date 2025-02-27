@@ -11,11 +11,12 @@ public class ColumnInfo {
   String setterName;
   Field field;
   Method getter;
-  Method setter;
+  public Method setter;
   boolean primaryKey;
   boolean foreignKey;
   String foreignName;
   Class<? extends Lorm<?>> foreignModel;
+  boolean indexed;
 
   public String getColumnName() {
     return columnName;

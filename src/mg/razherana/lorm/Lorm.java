@@ -4,11 +4,13 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 import mg.razherana.lorm.exceptions.RelationNotFoundException;
@@ -74,7 +76,7 @@ abstract public class Lorm<T extends Lorm<T>> {
     for (NestedEagerLoad nestedEagerLoad : eagerLoads)
       if (eagerLoad.equals(nestedEagerLoad.getRelation()))
         return nestedEagerLoad;
-  
+
     NestedEagerLoad nestedEagerLoad = new NestedEagerLoad(eagerLoad);
     eagerLoads.add(nestedEagerLoad);
     return nestedEagerLoad;
@@ -194,12 +196,25 @@ abstract public class Lorm<T extends Lorm<T>> {
 
     System.out.println("[" + getClass() + ":save] -> " + query);
 
-    PreparedStatement preparedStatement = connection.prepareStatement(query);
+    PreparedStatement preparedStatement = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
 
     for (int i = 0; i < queryParams.size(); i++)
       preparedStatement.setObject(i + 1, queryParams.get(i));
 
     preparedStatement.executeUpdate();
+
+    var prim = reflectContainer.getPrimaryKey();
+    try {
+      if (prim != null) {
+        var last = preparedStatement.getGeneratedKeys();
+        if (last.next())
+          prim.setter.invoke(this, last.getInt(1));
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
+    preparedStatement.close();
   }
 
   public Map<String, Relation<? extends Lorm<?>, ? extends Lorm<?>>> relations() {
@@ -231,7 +246,7 @@ abstract public class Lorm<T extends Lorm<T>> {
     }
   }
 
-  protected HashMap<String, ArrayList<Lorm<?>>> hasMany = new HashMap<>();
+  public HashMap<String, ArrayList<Lorm<?>>> hasMany = new HashMap<>();
 
   protected <U extends Lorm<U>> ArrayList<U> hasMany(String relationName, Connection connection)
       throws SQLException {
@@ -271,6 +286,7 @@ abstract public class Lorm<T extends Lorm<T>> {
     return otherModels;
   }
 
+  @SuppressWarnings("unchecked")
   private static <U extends Lorm<U>, T extends Lorm<T>> void hasManyStatic(ArrayList<T> models, Relation<T, U> relation,
       Connection connection, HashSet<NestedEagerLoad> nestedLoads) throws SQLException {
     U other;
@@ -286,20 +302,12 @@ abstract public class Lorm<T extends Lorm<T>> {
 
     ArrayList<U> otherModels = other.all(connection);
 
-    for (T t : models) {
-      ArrayList<U> joins = new ArrayList<>();
-      for (U u : otherModels)
-        if (relation.getCondition().test(t, u))
-          joins.add(u);
-
-      @SuppressWarnings("unchecked")
-      var toJoin = (ArrayList<Lorm<?>>) joins;
-
-      t.hasMany.put(relation.getRelationName(), toJoin);
-    }
+    relation.getRelationSetter().apply((ArrayList<Lorm<?>>) models, (ArrayList<Lorm<?>>) otherModels,
+        (BiPredicate<Lorm<?>, Lorm<?>>) relation.getCondition(),
+        relation.getRelationName());
   }
 
-  protected HashMap<String, Lorm<?>> oneToOne = new HashMap<>();
+  public HashMap<String, Lorm<?>> oneToOne = new HashMap<>();
 
   protected <U extends Lorm<U>> U belongsTo(String relationName, Connection connection)
       throws SQLException {
@@ -356,6 +364,7 @@ abstract public class Lorm<T extends Lorm<T>> {
     return otherModels.size() > 0 ? otherModels.get(0) : null;
   }
 
+  @SuppressWarnings("unchecked")
   private static <U extends Lorm<U>, T extends Lorm<T>> void belongsToStatic(ArrayList<T> models,
       Relation<T, U> relation, Connection connection, HashSet<NestedEagerLoad> nestedLoads) throws SQLException {
     U other;
@@ -371,19 +380,9 @@ abstract public class Lorm<T extends Lorm<T>> {
 
     ArrayList<U> otherModels = other.all(connection);
 
-    for (T t : models) {
-      U join = null;
-
-      for (U u : otherModels)
-        if (relation.getCondition().test(t, u)) {
-          join = u;
-          break;
-        }
-
-      var toJoin = (Lorm<?>) join;
-
-      t.oneToOne.put(relation.getRelationName(), toJoin);
-    }
+    relation.getRelationSetter().apply((ArrayList<Lorm<?>>) models, (ArrayList<Lorm<?>>) otherModels,
+        (BiPredicate<Lorm<?>, Lorm<?>>) relation.getCondition(),
+        relation.getRelationName());
   }
 
   // #endregion [RelationMethods]

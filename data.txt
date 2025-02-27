@@ -1,0 +1,9 @@
+Old O(n^2):
+  Min = 2613.98 ms
+  Max = 4133.75 ms
+  Avg = 3142.17 ms
+
+New O(n(log(n) + 1)):
+  Min = 325.42 ms
+  Max = 805.52 ms
+  Avg = 383.72 ms

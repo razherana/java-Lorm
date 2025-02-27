@@ -12,7 +12,18 @@ public @interface Column {
 
   public boolean primaryKey() default false;
 
+  /**
+   * The getter's name
+   */
   public String getter() default "";
 
+  /**
+   * The setter's name
+   */
   public String setter() default "";
+
+  /**
+   * Tells that a column is indexed when using in relation.
+   */
+  public boolean indexed() default false;
 }
