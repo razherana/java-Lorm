@@ -270,13 +270,13 @@ abstract public class Lorm<T extends Lorm<T>> {
 
     if (reflectContainer.getPrimaryKey() != null)
       query += reflectContainer.getPrimaryKey().getColumnName() + " = ?";
-    else if (beforeOutValues.size() > 0) {
+    else if (oldValues.size() > 0) {
       int c1 = 0;
-      for (String colName : beforeOutValues.keySet()) {
+      for (String colName : oldValues.keySet()) {
         query += colName + " = ?";
-        queryParams.add(beforeOutValues.get(colName));
+        queryParams.add(oldValues.get(colName));
 
-        if (c1++ != beforeOutValues.size() - 1)
+        if (c1++ != oldValues.size() - 1)
           query += " AND ";
       }
     } else
