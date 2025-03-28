@@ -14,6 +14,7 @@ import java.util.Objects;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 
+import mg.razherana.lorm.exceptions.LormException;
 import mg.razherana.lorm.exceptions.RelationNotFoundException;
 import mg.razherana.lorm.queries.WhereContainer;
 import mg.razherana.lorm.reflect.ReflectContainer;
@@ -24,6 +25,22 @@ abstract public class Lorm<T extends Lorm<T>> {
   final private ReflectContainer reflectContainer;
   private Map<String, Function<Object, ?>> beforeOut = new HashMap<>();
   private Map<String, Function<Object, ?>> beforeIn = new HashMap<>();
+
+  final private Map<String, Object> oldValues = new HashMap<>();
+
+  public Map<String, Object> getOldValues() {
+    return oldValues;
+  }
+
+  private boolean loaded = false;
+
+  public boolean isLoaded() {
+    return loaded;
+  }
+
+  public void setLoaded(boolean loaded) {
+    this.loaded = loaded;
+  }
 
   public Lorm() {
     reflectContainer = ReflectContainer.loadAnnotations(this);
@@ -228,6 +245,49 @@ abstract public class Lorm<T extends Lorm<T>> {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+
+    preparedStatement.close();
+  }
+
+  public void update(Connection connection) throws SQLException {
+    String query = "UPDATE " + reflectContainer.getTable() + " SET ";
+
+    ArrayList<Object> queryParams = new ArrayList<>();
+
+    HashMap<String, Object> beforeOutValues = reflectContainer.getBeforeOutInsertValues(this);
+
+    int c = 0;
+    for (Map.Entry<String, Object> entry : beforeOutValues.entrySet()) {
+      query += entry.getKey() + " = ?";
+      queryParams.add(entry.getValue());
+      if (c++ != beforeOutValues.size() - 1)
+        query += ", ";
+    }
+
+    System.out.println(query);
+
+    query += " WHERE ";
+
+    if (reflectContainer.getPrimaryKey() != null)
+      query += reflectContainer.getPrimaryKey().getColumnName() + " = ?";
+    else if (beforeOutValues.size() > 0) {
+      int c1 = 0;
+      for (String colName : beforeOutValues.keySet()) {
+        query += colName + " = ?";
+        queryParams.add(beforeOutValues.get(colName));
+
+        if (c1++ != beforeOutValues.size() - 1)
+          query += " AND ";
+      }
+    } else
+      throw new LormException("No columns found to make the where query...");
+
+    System.out.println("[" + getClass() + ":update] -> " + query);
+
+    PreparedStatement preparedStatement = connection.prepareStatement(query);
+
+    for (int i = 0; i < queryParams.size(); i++)
+      preparedStatement.setObject(i + 1, queryParams.get(i));
 
     preparedStatement.close();
   }
