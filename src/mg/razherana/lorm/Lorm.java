@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -136,6 +137,7 @@ abstract public class Lorm<T extends Lorm<T>> {
     PreparedStatement preparedStatement = connection.prepareStatement(query);
 
     System.out.println("[" + getClass() + ":query] -> " + query);
+    System.out.println("[" + getClass() + ":query_params] -> " + Arrays.toString(queryParams));
 
     for (int i = 0; i < queryParams.length; i++)
       preparedStatement.setObject(i + 1, queryParams[i]);
@@ -227,6 +229,7 @@ abstract public class Lorm<T extends Lorm<T>> {
         + (beforeOutValues.size() > 0 ? values.substring(0, values.length() - 2) : values) + ")";
 
     System.out.println("[" + getClass() + ":save] -> " + query);
+    System.out.println("[" + getClass() + ":save_params] -> " + queryParams);
 
     PreparedStatement preparedStatement = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
 
@@ -264,13 +267,12 @@ abstract public class Lorm<T extends Lorm<T>> {
         query += ", ";
     }
 
-    System.out.println(query);
-
     query += " WHERE ";
 
-    if (reflectContainer.getPrimaryKey() != null)
+    if (reflectContainer.getPrimaryKey() != null) {
       query += reflectContainer.getPrimaryKey().getColumnName() + " = ?";
-    else if (oldValues.size() > 0) {
+      queryParams.add(oldValues.get(reflectContainer.getPrimaryKey().getColumnName()));
+    } else if (oldValues.size() > 0) {
       int c1 = 0;
       for (String colName : oldValues.keySet()) {
         query += colName + " = ?";
@@ -283,12 +285,14 @@ abstract public class Lorm<T extends Lorm<T>> {
       throw new LormException("No columns found to make the where query...");
 
     System.out.println("[" + getClass() + ":update] -> " + query);
+    System.out.println("[" + getClass() + ":update_params] -> " + queryParams);
 
     PreparedStatement preparedStatement = connection.prepareStatement(query);
 
     for (int i = 0; i < queryParams.size(); i++)
       preparedStatement.setObject(i + 1, queryParams.get(i));
 
+    preparedStatement.executeUpdate();
     preparedStatement.close();
   }
 
